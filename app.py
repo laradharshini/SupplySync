@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash
+from pymongo import MongoClient
 import os
 
 app = Flask(__name__)
@@ -10,6 +12,12 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = 'your-secret-key'
+
+# MongoDB Config
+client = MongoClient("mongodb://localhost:27017/")
+db = client['supplysync']
+vendor_collection = db['vendor']
+supplier_collection = db['supplier']
 
 @app.route('/')
 def index():
@@ -22,9 +30,8 @@ def signup():
 @app.route('/signup/vendor', methods=['GET', 'POST'])
 def signup_vendor():
     if request.method == 'GET':
-        return render_template('signup_vendor.html')  # Your vendor signup page if needed
+        return render_template('signup_vendor.html')
 
-    # POST method: handle form submission after OTP verification
     phone = request.form.get('phone')
     full_name = request.form.get('fullName')
     business_name = request.form.get('businessName')
@@ -37,38 +44,38 @@ def signup_vendor():
     if not all([phone, full_name, business_name, email, address, product_desc, password, file]):
         return jsonify({'error': 'All fields are required'}), 400
 
-    # Save the uploaded certificate file securely
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
     try:
         file.save(filepath)
     except Exception as e:
         return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
 
-    # Hash the password securely
     hashed_password = generate_password_hash(password)
 
-    # TODO: Save user data to your database here (example):
-    # save_user_to_db(
-    #    full_name=full_name,
-    #    business_name=business_name,
-    #    email=email,
-    #    phone=phone,
-    #    address=address,
-    #    product_desc=product_desc,
-    #    password_hash=hashed_password,
-    #    certificate_path=filepath
-    # )
+    vendor_data = {
+        'phone': phone,
+        'full_name': full_name,
+        'business_name': business_name,
+        'email': email,
+        'address': address,
+        'product_description': product_desc,
+        'password_hash': hashed_password,
+        'certificate_path': filepath
+    }
 
-    # For now, just simulate success response
-    return jsonify({'message': 'Vendor signup successful!'}), 200
+    try:
+        vendor_collection.insert_one(vendor_data)
+        return jsonify({'message': 'Vendor signup successful!'}), 200
+    except Exception as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @app.route('/signup/supplier', methods=['GET', 'POST'])
 def signup_supplier():
     if request.method == 'GET':
-        return render_template('signup_supplier.html')  # Your vendor signup page if needed
+        return render_template('signup_supplier.html')
 
-    # POST method: handle form submission after OTP verification
     phone = request.form.get('phone')
     full_name = request.form.get('fullName')
     business_name = request.form.get('businessName')
@@ -81,43 +88,85 @@ def signup_supplier():
     if not all([phone, full_name, business_name, email, address, product_desc, password, file]):
         return jsonify({'error': 'All fields are required'}), 400
 
-    # Save the uploaded certificate file securely
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
     try:
         file.save(filepath)
     except Exception as e:
         return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
 
-    # Hash the password securely
     hashed_password = generate_password_hash(password)
 
-    # TODO: Save user data to your database here (example):
-    # save_user_to_db(
-    #    full_name=full_name,
-    #    business_name=business_name,
-    #    email=email,
-    #    phone=phone,
-    #    address=address,
-    #    product_desc=product_desc,
-    #    password_hash=hashed_password,
-    #    certificate_path=filepath
-    # )
+    supplier_data = {
+        'phone': phone,
+        'full_name': full_name,
+        'business_name': business_name,
+        'email': email,
+        'address': address,
+        'product_description': product_desc,
+        'password_hash': hashed_password,
+        'certificate_path': filepath
+    }
 
-    # For now, just simulate success response
-    return jsonify({'message': 'Supplier signup successful!'}), 200
+    try:
+        supplier_collection.insert_one(supplier_data)
+        return jsonify({'message': 'Supplier signup successful!'}), 200
+    except Exception as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @app.route('/login')
 def login():
     return render_template('login.html')
 
-@app.route('/login/vendor')
+@app.route('/login/vendor', methods=['GET', 'POST'])
 def login_vendor():
-    return render_template('login_vendor.html')
+    error = None
+    if request.method == 'POST':
+        identifier = request.form.get('identifier')  # phone or email
+        password = request.form.get('password')
 
-@app.route('/login/supplier')
+        if not identifier or not password:
+            error = 'Please fill all fields.'
+        else:
+            vendor = vendor_collection.find_one({
+                '$or': [
+                    {'phone': identifier},
+                    {'email': identifier}
+                ]
+            })
+
+            if vendor and check_password_hash(vendor['password_hash'], password):
+                # Login successful - here you can set session or redirect
+                return f"Welcome, {vendor['full_name']}! Login successful."
+            else:
+                error = 'Invalid phone/email or password.'
+
+    return render_template('login_vendor.html', error=error)
+
+@app.route('/login/supplier', methods=['GET', 'POST'])
 def login_supplier():
-    return render_template('login_supplier.html')
+    error = None
+    if request.method == 'POST':
+        identifier = request.form.get('identifier')  # phone or email
+        password = request.form.get('password')
 
+        if not identifier or not password:
+            error = 'Please fill all fields.'
+        else:
+            supplier = supplier_collection.find_one({
+                '$or': [
+                    {'phone': identifier},
+                    {'email': identifier}
+                ]
+            })
+
+            if supplier and check_password_hash(supplier['password_hash'], password):
+                # Login successful - here you can set session or redirect
+                return f"Welcome, {supplier['full_name']}! Login successful."
+            else:
+                error = 'Invalid phone/email or password.'
+
+    return render_template('login_supplier.html', error=error)
 if __name__ == '__main__':
     app.run(debug=True)
