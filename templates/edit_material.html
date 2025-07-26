@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Edit Material - SupplySync</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #e6f4ea, #d0f0c0);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 30px;
+      box-sizing: border-box;
+    }
+    .container {
+      background: white;
+      border-radius: 18px;
+      padding: 20px 30px;
+      width: 700px;
+      box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+      box-sizing: border-box;
+    }
+    h2 {
+      color: #1b4332;
+      font-weight: 600;
+      font-size: 32px;
+      margin-bottom: 25px;
+      text-align: center;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #2d6a4f;
+      font-size: 16px;
+    }
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      border: 1.5px solid #8ce99a;
+      font-size: 15px;
+      font-family: 'Poppins', sans-serif;
+      color: #2d6a4f;
+      resize: vertical;
+      box-sizing: border-box;
+      transition: border-color 0.3s ease;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus,
+    input[type="file"]:focus {
+      outline: none;
+      border-color: #1b4332;
+    }
+    /* Hide native file input */
+    input[type="file"] {
+      display: none;
+    }
+    /* Custom file upload button */
+    .file-upload-label {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #38b000, #70e000);
+      border-radius: 12px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.3s ease;
+      font-size: 16px;
+      text-align: center;
+    }
+    .file-upload-label:hover {
+      background: linear-gradient(135deg, #2a8000, #4db300);
+    }
+    .file-upload-filename {
+      margin-left: 15px;
+      font-size: 14px;
+      color: #2d6a4f;
+      vertical-align: middle;
+      user-select: text;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #38b000, #70e000);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: linear-gradient(135deg, #2a8000, #4db300);
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 15px;
+      color: #1b4332;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 14px;
+      user-select: none;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    #successMessage {
+      background: #d4edda;
+      color: #155724;
+      border: 1.5px solid #c3e6cb;
+      padding: 12px 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Edit Material</h2>
+
+    <!-- Make sure to add enctype for file upload -->
+    <form method="POST" enctype="multipart/form-data">
+      <label for="name">Material Name</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        placeholder="e.g. Fresh Tomatoes"
+        value="{{ material.name }}"
+        required
+      />
+
+      <label for="description">Description</label>
+      <textarea
+        id="description"
+        name="description"
+        rows="3"
+        placeholder="Brief description"
+        required
+      >{{ material.description }}</textarea>
+
+      <label for="price_in_rupees">Price per unit (₹)</label>
+      <input
+        type="number"
+        id="price_in_rupees"
+        name="price_in_rupees"
+        min="0"
+        step="0.01"
+        placeholder="e.g. 50.00"
+        value="{{ material.price_in_rupees }}"
+        required
+      />
+
+      <label for="available_quantity">Available Quantity</label>
+      <input
+        type="number"
+        id="available_quantity"
+        name="available_quantity"
+        min="0"
+        step="0.01"
+        placeholder="e.g. 100"
+        value="{{ material.available_quantity }}"
+        required
+      />
+
+      <label for="unit">Unit</label>
+      <select name="unit" id="unit" required onchange="checkOtherUnit(this)">
+        <option value="">--Select Unit--</option>
+        <option value="kg" {% if material.quantity_unit == 'kg' %}selected{% endif %}>kg (Kilogram)</option>
+        <option value="g" {% if material.quantity_unit == 'g' %}selected{% endif %}>g (Gram)</option>
+        <option value="t" {% if material.quantity_unit == 't' %}selected{% endif %}>t (Metric Ton)</option>
+        <option value="l" {% if material.quantity_unit == 'l' %}selected{% endif %}>l (Liter)</option>
+        <option value="ml" {% if material.quantity_unit == 'ml' %}selected{% endif %}>ml (Milliliter)</option>
+        <option value="units" {% if material.quantity_unit == 'units' %}selected{% endif %}>units (Pieces)</option>
+        <option value="dozen" {% if material.quantity_unit == 'dozen' %}selected{% endif %}>dozen</option>
+        <option value="bag" {% if material.quantity_unit == 'bag' %}selected{% endif %}>bag</option>
+        <option value="sack" {% if material.quantity_unit == 'sack' %}selected{% endif %}>sack</option>
+        <option value="carton" {% if material.quantity_unit == 'carton' %}selected{% endif %}>carton</option>
+        <option value="crate" {% if material.quantity_unit == 'crate' %}selected{% endif %}>crate</option>
+        <option value="meter" {% if material.quantity_unit == 'meter' %}selected{% endif %}>meter</option>
+        <option value="yard" {% if material.quantity_unit == 'yard' %}selected{% endif %}>yard</option>
+        <option value="other" {% if material.quantity_unit not in ['kg','g','t','l','ml','units','dozen','bag','sack','carton','crate','meter','yard'] %}selected{% endif %}>Other (Specify)</option>
+      </select>
+
+      <input
+        type="text"
+        id="customUnit"
+        name="custom_unit"
+        placeholder="Enter custom unit"
+        style="display:none; margin-top:8px; padding:10px 12px; border-radius:8px; border:1.5px solid #8ce99a; font-family: 'Poppins', sans-serif; font-size: 15px; color: #2d6a4f;"
+        value="{% if material.quantity_unit not in ['kg','g','t','l','ml','units','dozen','bag','sack','carton','crate','meter','yard'] %}{{ material.quantity_unit }}{% else %}{% endif %}"
+      />
+
+      <!-- File upload field -->
+      <label for="image">Upload Image</label>
+      <label class="file-upload-label" for="image">Choose File</label>
+      <input type="file" id="image" name="image" accept="image/*" />
+      <span class="file-upload-filename" id="file-name">No file chosen</span>
+
+      <button type="submit">Save changes</button>
+    </form>
+
+    <a href="{{ url_for('dashboard_supplier') }}" class="back-link">Cancel and go back to Dashboard</a>
+  </div>
+
+  <script>
+    function checkOtherUnit(select) {
+      const customUnitInput = document.getElementById('customUnit');
+      if (select.value === 'other') {
+        customUnitInput.style.display = 'block';
+        customUnitInput.required = true;
+      } else {
+        customUnitInput.style.display = 'none';
+        customUnitInput.required = false;
+        customUnitInput.value = '';
+      }
+    }
+    window.addEventListener('DOMContentLoaded', () => {
+      const unitSelect = document.getElementById('unit');
+      checkOtherUnit(unitSelect);
+    });
+
+    // File upload filename display
+    const fileInput = document.getElementById('image');
+    const fileNameSpan = document.getElementById('file-name');
+
+    fileInput.addEventListener('change', () => {
+      fileNameSpan.textContent = fileInput.files.length > 0 ? fileInput.files[0].name : 'No file chosen';
+    });
+  </script>
+</body>
+</html>

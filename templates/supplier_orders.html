@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Supplier Orders - SupplySync</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #e6f4ea, #d0f0c0);
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+      color: #1b4332;
+    }
+
+    .container {
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+      max-width: 1200px;
+      width: 100%;
+      padding: 35px;
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 30px;
+      color: #2d6a4f;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.08);
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+
+    thead {
+      background: linear-gradient(135deg, #38b000, #70e000);
+      color: white;
+    }
+
+    th, td {
+      padding: 16px 18px;
+      text-align: left;
+      font-size: 15px;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #d8f3dc;
+    }
+
+    .status-dot {
+      height: 12px;
+      width: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .status-text {
+      font-weight: 600;
+      vertical-align: middle;
+    }
+
+    .Pending { background: #ffd737;}
+    .Accepted { background: #8bef55;}
+    .Rejected { background: #fc5252;}
+    .Confirmed { background-color: #0d9b19;}
+    .Shipped { background-color: #379eff;}
+    .Delivered { background-color: #6a6e72;}
+
+    select {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 2px solid #74c69d;
+  background-color: #e9fbe5;
+  color: #1b4332;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(56, 176, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%231b4332' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 8px;
+  padding-right: 30px;
+}
+
+select:hover {
+  background-color: #dffce2;
+  border-color: #52b788;
+}
+
+select:focus {
+  outline: none;
+  border-color: #40916c;
+  background-color: #f0fff4;
+  box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.3);
+}
+
+
+    button.update-status {
+      background: linear-gradient(135deg, #38b000, #70e000);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      margin-left: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(56,176,0,0.3);
+      transition: background 0.2s ease;
+    }
+
+    button.update-status:hover {
+      background: linear-gradient(135deg, #2a8000, #4db300);
+    }
+
+    @media (max-width: 768px) {
+      table {
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 12px;
+      }
+
+      .container {
+        padding: 25px;
+      }
+
+      h2 {
+        font-size: 26px;
+      }
+    }
+
+    p.no-orders {
+      text-align: center;
+      font-weight: 500;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Orders Received</h2>
+
+    {% if orders %}
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Material</th>
+            <th>Qty</th>
+            <th>Unit</th>
+            <th>Vendor Info</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+          <tr>
+            <td>{{ order.timestamp_str }}</td>
+            <td>{{ order.material_name }}</td>
+            <td>{{ order.quantity }}</td>
+            <td>{{ order.unit }}</td>
+            <td>
+              <strong>{{ order.vendor_name }}</strong><br/>
+              {% if order.vendor_email %}<small>Email:</small> {{ order.vendor_email }}<br>{% endif %}
+              {% if order.vendor_phone %}<small>Phone:</small> {{ order.vendor_phone }}{% endif %}
+            </td>
+            <td>
+              <span class="status-dot {{ order.status }}"></span>
+              <span class="status-text">{{ order.status }}</span>
+            </td>
+            <td>
+              <form action="{{ url_for('update_order_status', order_id=order._id_str) }}" method="post">
+                <input type="hidden" name="order_id" value="{{ order._id_str }}" />
+                <select name="new_status" required>
+                  <option value="" disabled selected>--Status--</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Accepted">Accepted</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Shipped">Shipped</option>
+                  <option value="Delivered">Delivered</option>
+                </select>
+                <button type="submit" class="update-status">Update</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="no-orders">No orders received yet.</p>
+    {% endif %}
+  </div>
+
+</body>
+</html>
