@@ -345,62 +345,156 @@ def edit_material(material_id):
 
     return render_template('edit_material.html', material=material)
 
-@app.route('/supplier/orders')
-def supplier_orders():
-    if 'supplier_id' not in session:
-        return redirect(url_for('login_supplier'))
-    supplier_material_ids = [mat['_id'] for mat in materials.find({'supplier_id': session['supplier_id']})]
-    supplier_orders = list(orders.find({'material_id': {'$in': [str(mid) for mid in supplier_material_ids]}}))
-    return render_template('supplier_orders.html', orders=supplier_orders)
-
 @app.route('/vendor/browse')
 def browse_materials():
     if 'vendor_id' not in session:
         return redirect(url_for('login_vendor'))
 
     all_materials = list(materials.find())
-    
-    # To get supplier names, fetch all suppliers once and map by _id
-    suppliers_map = {str(s['_id']): s['business_name'] for s in supplier_collection.find()}
-    
-    # Attach supplier name to materials
+
+    suppliers_map = {}
+    for s in supplier_collection.find():
+        suppliers_map[str(s['_id'])] = {
+            'supplier_name': s.get('business_name', 'Unknown Supplier'),
+            'supplier_email': s.get('email', ''),
+            'supplier_phone': s.get('phone', ''),
+            'supplier_location': s.get('location', '')
+        }
+
     for material in all_materials:
         supplier_id_str = str(material.get('supplier_id'))
-        material['supplier_name'] = suppliers_map.get(supplier_id_str, 'Unknown Supplier')
-        material['_id_str'] = str(material['_id'])  # For HTML usage
-    
+        supplier_info = suppliers_map.get(supplier_id_str, {
+            'supplier_name': 'Unknown Supplier',
+            'supplier_email': '',
+            'supplier_phone': '',
+            'supplier_location': ''
+        })
+
+        material['supplier_name'] = supplier_info['supplier_name']
+        material['supplier_email'] = supplier_info['supplier_email']
+        material['supplier_phone'] = supplier_info['supplier_phone']
+        material['supplier_location'] = supplier_info['supplier_location']
+        material['_id_str'] = str(material['_id'])
+
+        # Pass image filename or None if missing
+        material['image_filename'] = material.get('image_filename', None) or material.get('image', None)
+
     return render_template('browse_materials.html', materials=all_materials)
 
 @app.route('/vendor/place_order', methods=['POST'])
 def place_order():
     if 'vendor_id' not in session:
+        flash("Please log in as vendor to place an order.", "error")
         return redirect(url_for('login_vendor'))
 
-    material_id = request.form['material_id']
-    quantity = int(request.form['quantity'])
+    material_id = request.form.get('material_id')
+    quantity = request.form.get('quantity')
 
-    material = materials.find_one({'_id': ObjectId(material_id)})
+    try:
+        quantity = float(quantity)
+        if quantity <= 0:
+            raise ValueError("Quantity must be greater than 0.")
+    except Exception:
+        flash("Invalid quantity entered.", "error")
+        return redirect(url_for('browse_materials'))
 
-    order = {
-        'vendor_id': session['vendor_id'],
-        'material_id': material_id,
-        'material_name': material['name'],
-        'supplier_id': material['supplier_id'],
-        'quantity': quantity,
-        'status': 'Pending',
-        'timestamp': datetime.now()
-    }
+    try:
+        material = db.materials.find_one({'_id': ObjectId(material_id)})
+        if not material:
+            flash("Material not found.", "error")
+            return redirect(url_for('browse_materials'))
 
-    orders.insert_one(order)
-    return redirect(url_for('order_history'))
+        total_price = material['price_in_rupees'] * quantity
 
+        order = {
+            'vendor_id': session['vendor_id'],
+            'material_id': str(material['_id']),
+            'supplier_id': material['supplier_id'],
+            'quantity': quantity,
+            'unit': material['quantity_unit'],
+            'price_per_unit': material['price_in_rupees'],
+            'total_price': total_price,
+            'status': 'Pending',
+            'timestamp': datetime.now()
+        }
+
+        db.orders.insert_one(order)
+        flash("Order placed successfully!", "success")
+        return redirect(url_for('view_vendor_orders'))  # Updated here
+
+    except Exception as e:
+        flash(f"Error placing order: {str(e)}", "error")
+        return redirect(url_for('browse_materials'))
+   
 @app.route('/vendor/orders')
-def order_history():
+def view_vendor_orders():
     if 'vendor_id' not in session:
         return redirect(url_for('login_vendor'))
 
-    vendor_orders = list(orders.find({'vendor_id': session['vendor_id']}))
-    return render_template('order_history.html', orders=vendor_orders)
+    vendor_id = session['vendor_id']
+    vendor_orders = list(orders.find({'vendor_id': vendor_id}).sort('timestamp', -1))
+
+    # Get related material and supplier details
+    material_map = {str(m['_id']): m for m in materials.find()}
+    supplier_map = {str(s['_id']): s['business_name'] for s in supplier_collection.find()}
+
+    for order in vendor_orders:
+        material = material_map.get(order['material_id'])
+
+        order['material_name'] = material['name'] if material else 'Unknown Material'
+        order['unit'] = material['quantity_unit'] if material else ''
+        order['image_filename'] = material.get('image_filename', '') if material else ''
+        order['supplier_name'] = supplier_map.get(str(order['supplier_id']), 'Unknown Supplier')
+        order['timestamp_str'] = order['timestamp'].strftime('%d %b %Y, %I:%M %p')
+
+    return render_template('vendor_orders.html', orders=vendor_orders)
+
+
+@app.route('/supplier/orders')
+def supplier_orders():
+    if 'supplier_id' not in session:
+        return redirect(url_for('login_supplier'))  # Or actual login route
+
+    supplier_id = session['supplier_id']
+    order_list = list(orders.find({'supplier_id': supplier_id}))
+
+    enriched_orders = []
+    for order in order_list:
+        mat = materials.find_one({'_id': ObjectId(order['material_id'])})
+        vendor = vendor_collection.find_one({'_id': ObjectId(order['vendor_id'])})
+
+        enriched_orders.append({
+            '_id_str': str(order['_id']),
+            'timestamp_str': order['timestamp'].strftime("%d %b %Y"),
+            'material_name': mat['name'] if mat else "Unknown",
+            'quantity': order.get('quantity', ''),
+            'unit': order.get('unit', ''),
+            'status': order.get('status', 'Pending'),
+            'vendor_name': vendor.get('business_name') if vendor else "Unknown",
+            'vendor_email': vendor.get('email', '') if vendor else '',
+            'vendor_phone': vendor.get('phone', '') if vendor else ''
+        })
+
+    return render_template('supplier_orders.html', orders=enriched_orders)
+
+# Order Status Update
+@app.route('/supplier/update_order_status/<order_id>', methods=['POST'])
+def update_order_status(order_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('login_supplier'))
+
+    new_status = request.form.get('new_status')
+    if new_status not in ['Pending', 'Accepted','Rejected','Confirmed', 'Shipped', 'Delivered']:
+        flash('Invalid status selected.', 'error')
+        return redirect(url_for('supplier_orders'))
+
+    orders.update_one(
+        {'_id': ObjectId(order_id), 'supplier_id': session['supplier_id']},
+        {'$set': {'status': new_status}}
+    )
+
+    flash('Order status updated.', 'success')
+    return redirect(url_for('supplier_orders'))
 
 @app.route('/logout', methods=['POST'])
 def logout():
