@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SupplySync - Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    /* Reset margin on html & body for full height */
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0; padding: 0;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #e6f4ea, #d0f0c0);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      overflow-x: hidden;
+    }
+
+    h2 {
+      font-weight: 600;
+      font-size: 42px;
+      color: #1b4332;
+      margin-bottom: 40px;
+      text-shadow: 1.5px 1.5px 3px rgba(0,0,0,0.1);
+      opacity: 1;
+    }
+
+    .card-container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: nowrap;
+      justify-content: center;
+      max-width: 700px;
+      width: 100%;
+      opacity: 1;
+      overflow-x: auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 35px 25px;
+      width: 300px;
+      min-height: 280px;
+      text-align: center;
+      cursor: pointer;
+      color: white;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+      user-select: none;
+      opacity: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* Removed all hover styles */
+
+    /* Glow effect - keep it subtle but static */
+    .card::before {
+      content: "";
+      position: absolute;
+      top: -30%;
+      left: -30%;
+      width: 160%;
+      height: 160%;
+      background: radial-gradient(circle, rgba(255,255,255,0.3), transparent 70%);
+      border-radius: 50%;
+      filter: blur(20px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Role-specific card backgrounds */
+    .vendor {
+      background: linear-gradient(135deg, #b2f2bb, #8ce99a);
+      box-shadow:  0px 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .supplier {
+      background: linear-gradient(135deg, #b2f2bb, #8ce99a);
+      box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h3 {
+      margin: 0 0 12px;
+      font-weight: 700;
+      font-size: 28px;
+      color:  #1b4332;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      user-select: none;
+    }
+    .card p {
+      margin: 0;
+      font-weight: 500;
+      font-size: 16px;
+      color:  #2d6a4f;
+      line-height: 1.4;
+      user-select: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .card-container {
+        flex-direction: column;
+        gap: 25px;
+        align-items: center;
+        max-width: none;
+      }
+      .card {
+        width: 280px;
+      }
+    }
+    @media (max-width: 400px) {
+      .card {
+        width: 100%;
+      }
+      h2 {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Login As</h2>
+
+  <div class="card-container">
+    <div class="card vendor" onclick="location.href='/signup/vendor'">
+      <h3>Vendor</h3>
+      <p>
+        By signing up as a vendor, you can list your products, manage your supply efficiently,
+        and reach out to a wide network of local food entrepreneurs looking for quality supplies.
+      </p>
+    </div>
+    <div class="card supplier" onclick="location.href='/signup/supplier'">
+      <h3>Supplier</h3>
+      <p>
+        Signing up as a supplier lets you organize your deliveries, track orders, and build strong
+        partnerships within the supply chain, ensuring smooth operations and customer satisfaction.
+      </p>
+    </div>
+  </div>
+
+</body>
+</html>
