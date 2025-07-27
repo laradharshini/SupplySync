@@ -22,7 +22,7 @@ SupplySync is a web-based **street food supply chain management system** built u
 | Backend    | Flask (Python)           |
 | Frontend   | HTML, CSS, JavaScript    |
 | Database   | MongoDB (PyMongo)        |
-| OTP Service| Twilio                   |
+| OTP Service| Firebase Auth            |
 | Templating | Jinja2                   |
 ```
 # Directory Structure
