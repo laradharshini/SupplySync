@@ -250,91 +250,98 @@
   <div id="recaptcha-container" style="display: none;"></div>
 
   <script>
-    // 🔥 Firebase Config (Replace this with your actual Firebase project config)
-    const firebaseConfig = {
-      apiKey: "AIzaSyC7vLtVkVnoORZ_mUxIjIsIeEzQDwIaBBk",
-      authDomain: "supplysync1.firebaseapp.com",
-      projectId: "supplysync1",
-      appId: "1:147546069216:web:9f7f23c6dbfdeac0c0d885"
-    };
-    firebase.initializeApp(firebaseConfig);
+  // Firebase Config
+  const firebaseConfig = {
+    apiKey: "AIzaSyC7vLtVkVnoORZ_mUxIjIsIeEzQDwIaBBk",
+    authDomain: "supplysync1.firebaseapp.com",
+    projectId: "supplysync1",
+    appId: "1:147546069216:web:9f7f23c6dbfdeac0c0d885"
+  };
+  firebase.initializeApp(firebaseConfig);
 
-    const form = document.getElementById('signupForm');
-    const fileInput = document.getElementById('certificate');
-    const fileNameSpan = document.getElementById('file-name');
-    const otpModal = document.getElementById('otpModal');
-    const otpInput = document.getElementById('otpInput');
-    const otpError = document.getElementById('otpError');
-    const verifyBtn = document.getElementById('verifyOtpBtn');
-    const successMessage = document.getElementById('successMessage');
+  const form = document.getElementById('signupForm');
+  const fileInput = document.getElementById('certificate');
+  const fileNameSpan = document.getElementById('file-name');
+  const otpModal = document.getElementById('otpModal');
+  const otpInput = document.getElementById('otpInput');
+  const otpError = document.getElementById('otpError');
+  const verifyBtn = document.getElementById('verifyOtpBtn');
+  const successMessage = document.getElementById('successMessage');
 
-    fileInput.addEventListener('change', () => {
-      fileNameSpan.textContent = fileInput.files.length > 0 ? fileInput.files[0].name : 'No file chosen';
+  fileInput.addEventListener('change', () => {
+    fileNameSpan.textContent = fileInput.files.length > 0 ? fileInput.files[0].name : 'No file chosen';
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    successMessage.textContent = '';
+    otpError.textContent = '';
+
+    const formData = new FormData(form);
+    const phoneNumber = "+91" + formData.get("phone");
+
+    // Store form data and file
+    window._formData = formData;
+
+    // Trigger OTP
+    const appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'invisible'
     });
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      successMessage.textContent = '';
-      otpError.textContent = '';
+    try {
+      const confirmationResult = await firebase.auth().signInWithPhoneNumber(phoneNumber, appVerifier);
+      window.confirmationResult = confirmationResult;
+      otpModal.style.display = 'flex';
+      otpInput.value = '';
+      otpInput.focus();
+    } catch (error) {
+      alert("OTP send failed: " + error.message);
+    }
+  });
 
-      const formData = new FormData(form);
-      const phoneNumber = "+91" + formData.get("phone");
+  verifyBtn.addEventListener('click', async () => {
+    const otp = otpInput.value.trim();
 
-      // Trigger Firebase OTP
-      const appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+    if (otp.length !== 6 || isNaN(otp)) {
+      otpError.textContent = "Enter a valid 6-digit OTP";
+      return;
+    }
 
-      firebase.auth().signInWithPhoneNumber(phoneNumber, appVerifier)
-        .then((confirmationResult) => {
-          window.confirmationResult = confirmationResult;
-          otpModal.style.display = 'flex';
-          otpInput.value = '';
-          otpInput.focus();
+    try {
+      await window.confirmationResult.confirm(otp);
 
-          // Store form data for resubmit after OTP verify
-          otpModal.dataset.formData = JSON.stringify(Object.fromEntries(formData.entries()));
-        })
-        .catch((error) => {
-          alert("OTP send failed: " + error.message);
-        });
-    });
+      // Resend the saved form data
+      const verifiedForm = new FormData();
+      for (let [key, value] of window._formData.entries()) {
+        verifiedForm.append(key, value);
+      }
+      verifiedForm.append("certificate", fileInput.files[0]);
 
-    verifyBtn.addEventListener('click', async () => {
-      const otp = otpInput.value.trim();
+      const response = await fetch('/signup/vendor', {
+        method: 'POST',
+        body: verifiedForm
+      });
 
-      if (otp.length !== 6 || isNaN(otp)) {
-        otpError.textContent = "Enter valid 6-digit OTP";
-        return;
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Invalid server response (not JSON)");
       }
 
-      otpError.textContent = '';
-      confirmationResult.confirm(otp).then(async () => {
-        // OTP success — now submit full form to Flask
-        const saved = JSON.parse(otpModal.dataset.formData);
-        const verifiedForm = new FormData();
+      const result = await response.json();
 
-        for (let key in saved) {
-          verifiedForm.append(key, saved[key]);
-        }
-        verifiedForm.append("certificate", fileInput.files[0]);
+      if (response.ok && result.message) {
+        otpModal.style.display = 'none';
+        form.reset();
+        fileNameSpan.textContent = 'No file chosen';
+        successMessage.innerHTML = 'Registration complete! <a href="/login/vendor" style="color:#0a6ebd; font-weight:600; text-decoration:underline;">Login here</a>';
+      } else {
+        otpError.textContent = result.error || "Something went wrong.";
+      }
+    } catch (error) {
+      otpError.textContent = "OTP verification failed: " + error.message;
+    }
+  });
+</script>
 
-        const response = await fetch('/signup/vendor', {
-          method: 'POST',
-          body: verifiedForm
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-          otpModal.style.display = 'none';
-          form.reset();
-          fileNameSpan.textContent = 'No file chosen';
-          successMessage.innerHTML = 'Registration complete! <a href="/login/vendor" style="color:#0a6ebd; font-weight:600; text-decoration:underline;">Login here</a>';
-        } else {
-          otpError.textContent = result.error || "Something went wrong.";
-        }
-      }).catch((error) => {
-        otpError.textContent = "OTP verification failed: " + error.message;
-      });
-    });
-  </script>
 </body>
 </html>
