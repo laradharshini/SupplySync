@@ -2,7 +2,7 @@
 SupplySync is a web-based **street food supply chain management system** built using **Flask**, **MongoDB**, and **Twilio**. The platform connects **vendors** (street food sellers) with **suppliers** (raw material providers), enabling seamless material requests, order tracking, and status updates.
 
 # Features
-# Multi-User Roles
+**Multi-User Roles**
 - **Vendor**
   - Register and login with OTP verification
   - Browse available suppliers and raw materials
